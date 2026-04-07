@@ -1,10 +1,14 @@
+import logging
+
 from app.ai import clean_text_optional, embed_text
 from app.db import get_db
 
 
+logger = logging.getLogger(__name__)
+
+
 def create_message_and_embedding(user_id: int, chat_id: int, text: str) -> dict:
     cleaned_text = clean_text_optional(text)
-    embedding = embed_text(cleaned_text)
 
     with get_db() as (conn, cur):
         cur.execute(
@@ -16,16 +20,23 @@ def create_message_and_embedding(user_id: int, chat_id: int, text: str) -> dict:
             (user_id, chat_id, text, cleaned_text),
         )
         message = cur.fetchone()
-
-        # psycopg can adapt Python lists to Postgres arrays; we cast to vector in SQL.
-        cur.execute(
-            """
-            INSERT INTO embeddings (message_id, embedding)
-            VALUES (%s, %s::vector);
-            """,
-            (message["id"], embedding),
-        )
         conn.commit()
+
+    try:
+        embedding = embed_text(cleaned_text)
+
+        with get_db() as (conn, cur):
+            cur.execute(
+                """
+                INSERT INTO embeddings (message_id, embedding)
+                VALUES (%s, %s::vector);
+                """,
+                (message["id"], embedding),
+            )
+            conn.commit()
+    except Exception as exc:
+        # Capture should still succeed even if embeddings fail.
+        logger.exception("Embedding save failed for message %s: %s", message["id"], exc)
 
     return {
         "id": str(message["id"]),
