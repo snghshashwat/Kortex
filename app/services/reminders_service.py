@@ -3,13 +3,17 @@ from datetime import datetime, timedelta, timezone
 from app.db import get_db
 
 
-def create_reminder(message_id: str, user_id: int, chat_id: int, when: str) -> dict:
+def create_reminder(message_id: str, user_id: int, chat_id: int, when: str, custom_time: datetime | None = None) -> dict:
     now = datetime.now(timezone.utc)
 
     if when == "tomorrow":
         remind_at = now + timedelta(days=1)
     elif when == "next_week":
         remind_at = now + timedelta(days=7)
+    elif when == "custom":
+        if not custom_time:
+            raise ValueError("custom_time must be provided when when='custom'")
+        remind_at = custom_time
     else:
         raise ValueError("Unsupported reminder option")
 

@@ -3,6 +3,8 @@ import logging
 from fastapi import Header, HTTPException
 
 from app.config import settings
+from app.nlp_parser import parse_reminder_time
+from app.reminder_state import clear_pending_reminder, get_pending_reminder, set_pending_reminder
 from app.services.messages_service import create_message_and_embedding
 from app.services.reminders_service import create_reminder
 from app.telegram_api import answer_callback_query, send_message
@@ -33,27 +35,68 @@ async def verify_secret(secret: str | None) -> None:
 async def handle_message(update: dict) -> None:
     message = update["message"]
     text = (message.get("text") or "").strip()
+    user_id = message["from"]["id"]
+    chat_id = message["chat"]["id"]
 
     if not text:
-        await send_message(chat_id=message["chat"]["id"], text="Please send text only for now.")
+        await send_message(chat_id=chat_id, text="Please send text only for now.")
         return
 
+    # Check if user is replying with a time to a pending reminder prompt.
+    pending_message_id = get_pending_reminder(user_id)
+    if pending_message_id:
+        parsed_time = parse_reminder_time(text)
+        if parsed_time:
+            # User is providing a time for the pending message.
+            try:
+                reminder = create_reminder(
+                    message_id=pending_message_id,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    when="custom",  # New field to handle custom times.
+                    custom_time=parsed_time,
+                )
+                clear_pending_reminder(user_id)
+                await send_message(
+                    chat_id=chat_id,
+                    text=f"Reminder set for {parsed_time.isoformat()} UTC",
+                )
+                return
+            except Exception as exc:
+                logger.exception("Failed to create NLP reminder: %s", exc)
+                await send_message(
+                    chat_id=chat_id,
+                    text="I could not save that reminder. Please try again.",
+                )
+                return
+        # If no time was parsed, treat this as a new message (fall through).
+        clear_pending_reminder(user_id)
+
+    # Normal message flow: save and ask for reminder.
     try:
         created = create_message_and_embedding(
-            user_id=message["from"]["id"],
-            chat_id=message["chat"]["id"],
+            user_id=user_id,
+            chat_id=chat_id,
             text=text,
         )
 
+        # Store that this user now has a pending reminder for this message.
+        set_pending_reminder(user_id, created["id"])
+
         await send_message(
             chat_id=created["chat_id"],
-            text="Do you want to be reminded about this?",
+            text=(
+                "Do you want to be reminded about this? "
+                "You can:\n"
+                "1. Click the buttons below\n"
+                "2. Reply with a time like 'tomorrow 12pm' or 'next friday 3pm'"
+            ),
             reply_markup=reminder_buttons(created["id"]),
         )
     except Exception as exc:
         logger.exception("Failed to process Telegram message: %s", exc)
         await send_message(
-            chat_id=message["chat"]["id"],
+            chat_id=chat_id,
             text=(
                 "I received your message, but I could not save it right now. "
                 "Please check the backend configuration and try again."
@@ -72,16 +115,18 @@ async def handle_callback(update: dict) -> None:
 
     when = parts[1]
     message_id = parts[2]
+    user_id = callback["from"]["id"]
 
     if when == "no":
         await answer_callback_query(callback["id"], text="No reminder set")
         await send_message(chat_id=callback["message"]["chat"]["id"], text="Okay, no reminder set.")
+        clear_pending_reminder(user_id)
         return
 
     try:
         reminder = create_reminder(
             message_id=message_id,
-            user_id=callback["from"]["id"],
+            user_id=user_id,
             chat_id=callback["message"]["chat"]["id"],
             when=when,
         )
@@ -91,6 +136,7 @@ async def handle_callback(update: dict) -> None:
             chat_id=callback["message"]["chat"]["id"],
             text=f"Reminder saved for {reminder['remind_at'].isoformat()} UTC",
         )
+        clear_pending_reminder(user_id)
     except Exception as exc:
         logger.exception("Failed to create reminder: %s", exc)
         await answer_callback_query(callback["id"], text="Could not save reminder")
