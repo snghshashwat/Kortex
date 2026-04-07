@@ -1,31 +1,35 @@
-from openai import OpenAI
+import google.generativeai as genai
 
 from app.config import settings
 
-client = OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
+genai.configure(api_key=settings.llm_api_key)
 
 
 def clean_text_optional(text: str) -> str:
     """
-    Optional cleanup to remove noise. If the model call fails,
-    we safely fall back to the original text.
+    Optional cleanup to remove noise using Gemini.
+    If the model call fails, we safely fall back to the original text.
     """
     try:
-        response = client.responses.create(
-            model=settings.optional_cleaning_model,
-            input=(
-                "Clean this note without changing meaning. "
-                "Keep it concise and return only cleaned text:\n\n"
-                f"{text}"
-            ),
-            max_output_tokens=120,
+        model = genai.GenerativeModel(settings.optional_cleaning_model)
+        response = model.generate_content(
+            f"Clean this note without changing meaning. "
+            f"Keep it concise and return only cleaned text:\n\n{text}",
+            generation_config=genai.types.GenerationConfig(max_output_tokens=120),
         )
-        cleaned = (response.output_text or "").strip()
+        cleaned = (response.text or "").strip()
         return cleaned if cleaned else text
     except Exception:
         return text
 
 
 def embed_text(text: str) -> list[float]:
-    response = client.embeddings.create(model=settings.embedding_model, input=text)
-    return response.data[0].embedding
+    """
+    Generate embedding using Gemini's native embedding API.
+    Returns a list of 768 floats (Gemini embedding dimension).
+    """
+    result = genai.embed_content(
+        model="models/embedding-001",
+        content=text,
+    )
+    return result["embedding"]
