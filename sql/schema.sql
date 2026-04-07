@@ -13,11 +13,11 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 -- 2) Embeddings are stored separately to keep message table simple.
--- text-embedding-3-small returns 1536 dimensions.
+-- Gemini text-embedding-004 returns 768 dimensions.
 CREATE TABLE IF NOT EXISTS embeddings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id UUID NOT NULL UNIQUE REFERENCES messages(id) ON DELETE CASCADE,
-  embedding VECTOR(1536) NOT NULL,
+  embedding VECTOR(768) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
