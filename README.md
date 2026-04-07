@@ -7,6 +7,7 @@ A minimal, production-ready MVP where you can:
 - retrieve them later with semantic search (embeddings),
 - and receive reminders,
 - and lock graph/search access behind a Telegram-issued token.
+- optionally sync reminders into Google Calendar.
 
 This project is intentionally simple so you can learn and extend it.
 
@@ -34,7 +35,8 @@ FastAPI backend (app/main.py)
    |
   |----> Embedding API (Gemini via OpenAI-compatible endpoint)
    |
-   '---> APScheduler job (every 1 minute) -> checks due reminders -> sends Telegram message
+  '---> APScheduler job (every 1 minute) -> checks due reminders -> sends Telegram message
+  '---> Optional Google Calendar sync when reminders are created
 ```
 
 ## Project Structure
@@ -75,6 +77,7 @@ Kortex/
 - `app/ai.py`: Optional text cleanup + embedding generation.
 - `app/services/messages_service.py`: Message insert + embedding insert + semantic search SQL.
 - `app/services/reminders_service.py`: Create/list reminders + fetch due reminders + mark sent.
+- `app/services/google_calendar_service.py`: Optional Google Calendar event creation for reminders.
 - `app/telegram_api.py`: Direct Telegram Bot API calls (`sendMessage`, callback ack).
 - `app/telegram_handlers.py`: Logic for incoming Telegram messages and reminder button clicks.
 - `app/scheduler.py`: Cron-like background job every minute.
@@ -92,6 +95,8 @@ Kortex/
 2. Run `/newbot` and follow prompts.
 3. Save the bot token.
 4. Put it in `.env` as `TELEGRAM_BOT_TOKEN`.
+
+Optional: if you want reminder events in Google Calendar, also set `GOOGLE_CALENDAR_SYNC_REMINDERS=true`, `GOOGLE_CALENDAR_ID`, and service account credentials in `.env`.
 
 Why this matters:
 The bot token is your app identity with Telegram. Without webhook registration, Telegram cannot deliver user messages to your backend.
@@ -164,6 +169,12 @@ Reminder buttons:
 - Tomorrow
 - Next week
 - No
+
+Optional Google Calendar sync:
+
+- When a reminder is saved, Kortex can also create a Google Calendar event.
+- This is currently implemented with a Google service account and a shared calendar ID.
+- For personal per-user Google Calendar OAuth, the next step would be a dedicated login flow.
 
 Why this matters:
 This pattern gives immediate capture and gently prompts the user for reminder intent while context is fresh.

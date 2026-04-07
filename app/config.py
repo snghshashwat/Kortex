@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     public_base_url: str
     auth_secret: str | None = None
 
+    google_calendar_sync_reminders: bool = False
+    google_calendar_id: str | None = None
+    google_service_account_json: str | None = None
+    google_service_account_file: str | None = None
+
     llm_api_key: str
     llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     embedding_model: str = "text-embedding-004"

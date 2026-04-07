@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.db import get_db
+from app.services.google_calendar_service import sync_reminder_to_calendar
 
 
 def create_reminder(message_id: str, user_id: int, chat_id: int, when: str, custom_time: datetime | None = None) -> dict:
@@ -27,7 +28,19 @@ def create_reminder(message_id: str, user_id: int, chat_id: int, when: str, cust
             (message_id, user_id, chat_id, remind_at),
         )
         reminder = cur.fetchone()
+        cur.execute(
+            """
+            SELECT message_text
+            FROM messages
+            WHERE id = %s AND telegram_user_id = %s;
+            """,
+            (message_id, user_id),
+        )
+        message_row = cur.fetchone()
         conn.commit()
+
+    message_text = message_row["message_text"] if message_row else ""
+    sync_reminder_to_calendar(reminder, message_text=message_text, user_id=user_id)
 
     return {
         "id": str(reminder["id"]),

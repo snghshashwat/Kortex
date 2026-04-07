@@ -87,6 +87,8 @@ Use this to discover how your ideas connect!
 - **Axios** - API calls
 - **Vercel** - Deployment
 
+If the backend has Google Calendar sync enabled, reminder creation will also create a calendar event on the configured calendar.
+
 ## API Integration
 
 Fetches from your Render backend with a bearer token:
