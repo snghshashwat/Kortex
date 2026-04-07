@@ -72,13 +72,13 @@ export default function GraphViewer({ userId }: { userId: number }) {
                   label: "data(label)",
                   "text-valign": "center",
                   "text-halign": "center",
-                  "font-size": 10,
+                  "font-size": "10px",
                   color: "#fff",
                   width: "mapData(degree, 0, 10, 30, 50)",
                   height: "mapData(degree, 0, 10, 30, 50)",
                   "text-wrap": "wrap",
-                  "text-max-width": 100,
-                  padding: 10,
+                  "text-max-width": "100px",
+                  padding: "10px",
                 },
               },
               {
@@ -96,20 +96,19 @@ export default function GraphViewer({ userId }: { userId: number }) {
                   "target-arrow-color": "#555",
                   "target-arrow-shape": "triangle",
                   label: "data(similarity)",
-                  "font-size": 8,
+                  "font-size": "8px",
                   color: "#999",
-                  "edge-text-rotation": "autorotate",
                   width: "mapData(similarity, 0, 1, 1, 3)",
-                },
+                } as any,
               },
               {
                 selector: "edge:selected",
                 style: {
                   "line-color": "#667eea",
                   "target-arrow-color": "#667eea",
-                  width: 4,
+                  width: "4px",
                   color: "#667eea",
-                },
+                } as any,
               },
             ],
             layout: {
@@ -121,7 +120,7 @@ export default function GraphViewer({ userId }: { userId: number }) {
               nodeSpacing: 10,
               fit: true,
               padding: 50,
-            },
+            } as any,
           });
 
           cyRef.current = cy;
