@@ -35,6 +35,7 @@ def build_context_graph(user_id: int, similarity_threshold: float = 0.7, limit: 
     nodes = []
     edges = []
     embeddings = {}
+    scored_edges = []
 
     # Build nodes from messages.
     for row in rows:
@@ -45,6 +46,7 @@ def build_context_graph(user_id: int, similarity_threshold: float = 0.7, limit: 
                 "id": msg_id,
                 "label": text[:80] if len(text) > 80 else text,  # Truncate for display
                 "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "degree": 0,
             }
         )
         if row["embedding"]:
@@ -58,7 +60,7 @@ def build_context_graph(user_id: int, similarity_threshold: float = 0.7, limit: 
             "stats": {"total_messages": len(nodes), "total_edges": 0},
         }
 
-    # Compute similarity between all pairs of embeddings (cosine distance).
+    # Compute similarity between all pairs of embeddings.
     for i, (msg_id_1, embedding_1) in enumerate(embeddings.items()):
         for msg_id_2, embedding_2 in list(embeddings.items())[i + 1 :]:
             # Cosine similarity: dot(a, b) / (||a|| * ||b||)
@@ -73,15 +75,45 @@ def build_context_graph(user_id: int, similarity_threshold: float = 0.7, limit: 
             
             # Convert from cosine distance to 0-1 similarity.
             similarity = (similarity + 1) / 2
-            
-            if similarity >= similarity_threshold:
-                edges.append(
-                    {
-                        "source": msg_id_1,
-                        "target": msg_id_2,
-                        "similarity": round(similarity, 3),
-                    }
-                )
+
+            scored_edges.append(
+                {
+                    "source": msg_id_1,
+                    "target": msg_id_2,
+                    "similarity": similarity,
+                }
+            )
+
+    # Prefer edges above the chosen threshold, but keep a small fallback set
+    # so the graph still shows structure when the notes are sparse or short.
+    edges = [
+        {
+            "source": edge["source"],
+            "target": edge["target"],
+            "similarity": round(edge["similarity"], 3),
+        }
+        for edge in scored_edges
+        if edge["similarity"] >= similarity_threshold
+    ]
+
+    if not edges and scored_edges:
+        fallback_count = min(3, len(scored_edges))
+        edges = [
+            {
+                "source": edge["source"],
+                "target": edge["target"],
+                "similarity": round(edge["similarity"], 3),
+            }
+            for edge in sorted(scored_edges, key=lambda item: item["similarity"], reverse=True)[:fallback_count]
+        ]
+
+    degree_counts = {node["id"]: 0 for node in nodes}
+    for edge in edges:
+        degree_counts[edge["source"]] += 1
+        degree_counts[edge["target"]] += 1
+
+    for node in nodes:
+        node["degree"] = degree_counts[node["id"]]
 
     return {
         "nodes": nodes,

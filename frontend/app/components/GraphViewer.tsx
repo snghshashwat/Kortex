@@ -6,7 +6,12 @@ import axios from "axios";
 import styles from "./GraphViewer.module.css";
 
 interface GraphData {
-  nodes: Array<{ id: string; label: string; created_at: string }>;
+  nodes: Array<{
+    id: string;
+    label: string;
+    created_at: string;
+    degree: number;
+  }>;
   edges: Array<{ source: string; target: string; similarity: number }>;
   stats: { total_messages: number; total_edges: number };
 }
@@ -29,6 +34,15 @@ export default function GraphViewer({ userId }: { userId: number }) {
         setLoading(true);
         setError(null);
 
+        if (cyRef.current) {
+          cyRef.current.destroy();
+          cyRef.current = null;
+        }
+
+        if (containerRef.current) {
+          containerRef.current.innerHTML = "";
+        }
+
         const apiBase =
           process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
         const response = await axios.get<GraphData>(`${apiBase}/graph`, {
@@ -48,6 +62,7 @@ export default function GraphViewer({ userId }: { userId: number }) {
             data: {
               id: node.id,
               label: node.label,
+              degree: node.degree,
             },
           })),
           ...graphData.edges.map((edge) => ({
@@ -79,6 +94,12 @@ export default function GraphViewer({ userId }: { userId: number }) {
                   "text-wrap": "wrap",
                   "text-max-width": "100px",
                   padding: "10px",
+                },
+              },
+              {
+                selector: "node[degree = 0]",
+                style: {
+                  "background-color": "#475569",
                 },
               },
               {
@@ -149,6 +170,13 @@ export default function GraphViewer({ userId }: { userId: number }) {
     };
 
     fetchAndRender();
+
+    return () => {
+      if (cyRef.current) {
+        cyRef.current.destroy();
+        cyRef.current = null;
+      }
+    };
   }, [userId, threshold]);
 
   const getNodeText = () => {
