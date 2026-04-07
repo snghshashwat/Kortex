@@ -1,0 +1,117 @@
+.wrapper {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+}
+
+.container {
+  flex: 1;
+  background: #0f0f0f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.panel h3 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 1em;
+  color: #667eea;
+}
+
+.panel h3:first-child {
+  margin-top: 0;
+}
+
+.stats {
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.stats p {
+  margin: 5px 0;
+}
+
+.thresholdControl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.thresholdControl input {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+}
+
+.thresholdControl span {
+  font-weight: bold;
+  color: #667eea;
+  min-width: 45px;
+  text-align: right;
+}
+
+.instructions {
+  list-style: none;
+  font-size: 0.85em;
+  color: #999;
+}
+
+.instructions li {
+  margin: 5px 0;
+  padding-left: 15px;
+  position: relative;
+}
+
+.instructions li:before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #667eea;
+}
+
+.hint {
+  font-size: 0.85em;
+  color: #666;
+  margin: 8px 0;
+}
+
+.loading {
+  color: #667eea;
+  font-style: italic;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.selectedPanel {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.selectedPanel h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.nodeId {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: #667eea;
+  word-break: break-all;
+}
