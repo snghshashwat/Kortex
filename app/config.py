@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     public_base_url: str
 
     llm_api_key: str
-    llm_base_url: str = "https://api.openai.com/v1"
-    embedding_model: str = "text-embedding-3-small"
-    optional_cleaning_model: str = "gpt-4o-mini"
+    llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    embedding_model: str = "text-embedding-004"
+    optional_cleaning_model: str = "gemini-2.0-flash-lite"
 
 
 settings = Settings()

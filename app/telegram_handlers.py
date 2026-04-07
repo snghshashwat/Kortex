@@ -1,9 +1,14 @@
+import logging
+
 from fastapi import Header, HTTPException
 
 from app.config import settings
 from app.services.messages_service import create_message_and_embedding
 from app.services.reminders_service import create_reminder
 from app.telegram_api import answer_callback_query, send_message
+
+
+logger = logging.getLogger(__name__)
 
 
 def reminder_buttons(message_id: str) -> dict:
@@ -33,17 +38,27 @@ async def handle_message(update: dict) -> None:
         await send_message(chat_id=message["chat"]["id"], text="Please send text only for now.")
         return
 
-    created = create_message_and_embedding(
-        user_id=message["from"]["id"],
-        chat_id=message["chat"]["id"],
-        text=text,
-    )
+    try:
+        created = create_message_and_embedding(
+            user_id=message["from"]["id"],
+            chat_id=message["chat"]["id"],
+            text=text,
+        )
 
-    await send_message(
-        chat_id=created["chat_id"],
-        text="Do you want to be reminded about this?",
-        reply_markup=reminder_buttons(created["id"]),
-    )
+        await send_message(
+            chat_id=created["chat_id"],
+            text="Do you want to be reminded about this?",
+            reply_markup=reminder_buttons(created["id"]),
+        )
+    except Exception as exc:
+        logger.exception("Failed to process Telegram message: %s", exc)
+        await send_message(
+            chat_id=message["chat"]["id"],
+            text=(
+                "I received your message, but I could not save it right now. "
+                "Please check the backend configuration and try again."
+            ),
+        )
 
 
 async def handle_callback(update: dict) -> None:
@@ -63,15 +78,23 @@ async def handle_callback(update: dict) -> None:
         await send_message(chat_id=callback["message"]["chat"]["id"], text="Okay, no reminder set.")
         return
 
-    reminder = create_reminder(
-        message_id=message_id,
-        user_id=callback["from"]["id"],
-        chat_id=callback["message"]["chat"]["id"],
-        when=when,
-    )
+    try:
+        reminder = create_reminder(
+            message_id=message_id,
+            user_id=callback["from"]["id"],
+            chat_id=callback["message"]["chat"]["id"],
+            when=when,
+        )
 
-    await answer_callback_query(callback["id"], text="Reminder set")
-    await send_message(
-        chat_id=callback["message"]["chat"]["id"],
-        text=f"Reminder saved for {reminder['remind_at'].isoformat()} UTC",
-    )
+        await answer_callback_query(callback["id"], text="Reminder set")
+        await send_message(
+            chat_id=callback["message"]["chat"]["id"],
+            text=f"Reminder saved for {reminder['remind_at'].isoformat()} UTC",
+        )
+    except Exception as exc:
+        logger.exception("Failed to create reminder: %s", exc)
+        await answer_callback_query(callback["id"], text="Could not save reminder")
+        await send_message(
+            chat_id=callback["message"]["chat"]["id"],
+            text="I could not save that reminder. Please try again after checking the backend.",
+        )

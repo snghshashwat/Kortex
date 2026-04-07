@@ -31,7 +31,7 @@ FastAPI backend (app/main.py)
    |         |-- embeddings (pgvector)
    |         |-- reminders
    |
-   |----> Embedding API (OpenAI/OpenRouter)
+  |----> Embedding API (Gemini via OpenAI-compatible endpoint)
    |
    '---> APScheduler job (every 1 minute) -> checks due reminders -> sends Telegram message
 ```
@@ -332,7 +332,7 @@ If it returns `{"ok": true}`, your backend is live.
 
 - Supabase free tier for Postgres + pgvector.
 - Render free tier for backend (may sleep when idle).
-- `text-embedding-3-small` is cheap and good for MVP.
+- `text-embedding-004` is a good default for Gemini-backed semantic search.
 - Optional cleanup call can be disabled to reduce AI costs.
 
 ## Learning notes (backend + AI)
