@@ -84,28 +84,52 @@ def build_context_graph(user_id: int, similarity_threshold: float = 0.7, limit: 
                 }
             )
 
-    # Prefer edges above the chosen threshold, but keep a small fallback set
-    # so the graph still shows structure when the notes are sparse or short.
+    # Strategy: always ensure each node is connected to its top 2 neighbors,
+    # plus any edges above the threshold. This ensures the graph always shows structure.
+    
+    # First, collect edges above threshold.
+    threshold_edges = set()
+    for edge in scored_edges:
+        if edge["similarity"] >= similarity_threshold:
+            # Normalize to always use sorted tuple (smaller id first) to avoid duplicates.
+            key = (min(edge["source"], edge["target"]), max(edge["source"], edge["target"]))
+            threshold_edges.add(key)
+    
+    # Group scored edges by source node to find top-2 neighbors per node.
+    edges_by_source = {}
+    for edge in scored_edges:
+        src = edge["source"]
+        if src not in edges_by_source:
+            edges_by_source[src] = []
+        edges_by_source[src].append(edge)
+    
+    # For each node, ensure it has at least 2 edges to its top neighbors.
+    mandatory_edges = set()
+    for src, edges_for_src in edges_by_source.items():
+        # Sort by similarity descending, take top 2.
+        top_2 = sorted(edges_for_src, key=lambda e: e["similarity"], reverse=True)[:2]
+        for edge in top_2:
+            key = (min(src, edge["target"]), max(src, edge["target"]))
+            mandatory_edges.add(key)
+    
+    # Combine threshold edges and mandatory edges.
+    final_edge_keys = threshold_edges | mandatory_edges
+    
+    # Convert back to edge format with similarity scores.
+    edges_dict = {}
+    for edge in scored_edges:
+        key = (min(edge["source"], edge["target"]), max(edge["source"], edge["target"]))
+        edges_dict[key] = edge
+    
     edges = [
         {
-            "source": edge["source"],
-            "target": edge["target"],
-            "similarity": round(edge["similarity"], 3),
+            "source": edges_dict[key]["source"],
+            "target": edges_dict[key]["target"],
+            "similarity": round(edges_dict[key]["similarity"], 3),
         }
-        for edge in scored_edges
-        if edge["similarity"] >= similarity_threshold
+        for key in final_edge_keys
+        if key in edges_dict
     ]
-
-    if not edges and scored_edges:
-        fallback_count = min(3, len(scored_edges))
-        edges = [
-            {
-                "source": edge["source"],
-                "target": edge["target"],
-                "similarity": round(edge["similarity"], 3),
-            }
-            for edge in sorted(scored_edges, key=lambda item: item["similarity"], reverse=True)[:fallback_count]
-        ]
 
     degree_counts = {node["id"]: 0 for node in nodes}
     for edge in edges:
