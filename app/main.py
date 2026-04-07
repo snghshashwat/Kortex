@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import close_pool, open_pool
 from app.routes import router as api_router
@@ -18,6 +19,15 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Telegram Second Brain MVP", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(api_router)
 
 
