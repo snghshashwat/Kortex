@@ -53,26 +53,22 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## How to Use
 
-1. Get your Telegram numeric user ID:
+1. In Telegram, send `/link` to Kortex.
+2. Copy the access token from the bot reply.
+3. Paste the token into the dashboard.
 
-   ```sql
-   SELECT DISTINCT telegram_user_id FROM messages LIMIT 1;
-   ```
-
-2. Enter it in the dashboard
-
-3. The graph shows:
+4. The graph shows:
    - **Nodes** = your notes
    - **Node size** = how connected the note is
    - **Edges** = semantic relationships
    - **Edge thickness** = similarity strength
    - **Labels** = similarity scores
 
-4. Adjust the similarity threshold to filter connections:
+5. Adjust the similarity threshold to filter connections:
    - Higher = only strongest connections
    - Lower = more connections shown
 
-5. Click nodes to see their ID and connections
+6. Click nodes to see their ID and connections
 
 ## Understanding the Graph
 
@@ -93,10 +89,11 @@ Use this to discover how your ideas connect!
 
 ## API Integration
 
-Fetches from your Render backend:
+Fetches from your Render backend with a bearer token:
 
 ```
-GET /graph?user_id=YOUR_ID&similarity_threshold=0.7&limit=50
+GET /graph?similarity_threshold=0.7&limit=50
+Authorization: Bearer YOUR_TOKEN
 ```
 
 Response:

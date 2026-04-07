@@ -5,7 +5,8 @@ A minimal, production-ready MVP where you can:
 - capture thoughts via Telegram,
 - store them in Supabase Postgres,
 - retrieve them later with semantic search (embeddings),
-- and receive reminders.
+- and receive reminders,
+- and lock graph/search access behind a Telegram-issued token.
 
 This project is intentionally simple so you can learn and extend it.
 
@@ -77,7 +78,7 @@ Kortex/
 - `app/telegram_api.py`: Direct Telegram Bot API calls (`sendMessage`, callback ack).
 - `app/telegram_handlers.py`: Logic for incoming Telegram messages and reminder button clicks.
 - `app/scheduler.py`: Cron-like background job every minute.
-- `app/routes.py`: Public API endpoints (`POST /message`, `GET /search`, `GET /reminders`).
+- `app/routes.py`: Auth-protected API endpoints for message ingestion, search, reminders, and graph access.
 - `app/main.py`: FastAPI app, startup/shutdown lifecycle, webhook route.
 - `sql/schema.sql`: Full database schema + indexes.
 - `scripts/set_webhook.py`: Helper script to point Telegram webhook to your deployed backend.
@@ -191,7 +192,7 @@ Embeddings let you search by intent/meaning, not only exact words.
 
 ## Step 6: Semantic search
 
-Search endpoint: `GET /search?user_id=...&q=ideas about ai&limit=5`
+Search endpoint: `GET /search?q=ideas about ai&limit=5` with `Authorization: Bearer <token>`
 
 SQL logic in `messages_service.py`:
 
@@ -252,8 +253,10 @@ Response:
 
 ### `GET /search`
 
+Requires `Authorization: Bearer <token>`.
+
 Example:
-`/search?user_id=123&q=ideas about ai&limit=3`
+`/search?q=ideas about ai&limit=3`
 
 Response:
 
@@ -270,8 +273,10 @@ Response:
 
 ### `GET /reminders`
 
+Requires `Authorization: Bearer <token>`.
+
 Example:
-`/reminders?user_id=123`
+`/reminders`
 
 Response:
 
@@ -298,6 +303,7 @@ Security:
 
 - Telegram includes `X-Telegram-Bot-Api-Secret-Token` header.
 - We verify it in `verify_secret(...)`.
+- Graph, search, reminders, and manual message ingestion now require a signed Telegram access token.
 
 Why this matters:
 Without secret verification, anyone could fake webhook requests to your API.
@@ -332,7 +338,8 @@ If it returns `{"ok": true}`, your backend is live.
 
 - Supabase free tier for Postgres + pgvector.
 - Render free tier for backend (may sleep when idle).
-- `text-embedding-004` is a good default for Gemini-backed semantic search.
+- `text-embedding-004` is a good default for Gemini-backed
+- Access control is stateless, so no extra auth table is needed for the MVP.semantic search.
 - Optional cleanup call can be disabled to reduce AI costs.
 
 ## Learning notes (backend + AI)

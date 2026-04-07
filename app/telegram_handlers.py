@@ -2,6 +2,7 @@ import logging
 
 from fastapi import Header, HTTPException
 
+from app.auth import create_access_token
 from app.config import settings
 from app.nlp_parser import parse_reminder_time
 from app.reminder_state import clear_pending_reminder, get_pending_reminder, set_pending_reminder
@@ -37,6 +38,29 @@ async def handle_message(update: dict) -> None:
     text = (message.get("text") or "").strip()
     user_id = message["from"]["id"]
     chat_id = message["chat"]["id"]
+
+    if text.startswith("/link") or text.startswith("/auth"):
+        token = create_access_token(user_id, chat_id)
+        await send_message(
+            chat_id=chat_id,
+            text=(
+                "Your Kortex access token:\n\n"
+                f"{token}\n\n"
+                "Paste this into the dashboard to access your notes and graph. "
+                "Keep it private."
+            ),
+        )
+        return
+
+    if text.startswith("/start") or text.startswith("/help"):
+        await send_message(
+            chat_id=chat_id,
+            text=(
+                "Send me notes normally. To open your dashboard, type /link and copy the access token. "
+                "The same token is required for your graph, search, and reminders."
+            ),
+        )
+        return
 
     if not text:
         await send_message(chat_id=chat_id, text="Please send text only for now.")

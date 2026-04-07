@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str
     telegram_webhook_secret: str
     public_base_url: str
+    auth_secret: str | None = None
 
     llm_api_key: str
     llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"

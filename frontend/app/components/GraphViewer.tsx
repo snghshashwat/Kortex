@@ -16,7 +16,7 @@ interface GraphData {
   stats: { total_messages: number; total_edges: number };
 }
 
-export default function GraphViewer({ userId }: { userId: number }) {
+export default function GraphViewer({ token }: { token: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
@@ -47,9 +47,11 @@ export default function GraphViewer({ userId }: { userId: number }) {
           process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
         const response = await axios.get<GraphData>(`${apiBase}/graph`, {
           params: {
-            user_id: userId,
             similarity_threshold: threshold,
             limit: 50,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -177,7 +179,7 @@ export default function GraphViewer({ userId }: { userId: number }) {
         cyRef.current = null;
       }
     };
-  }, [userId, threshold]);
+  }, [token, threshold]);
 
   const getNodeText = () => {
     if (!selectedNode) return null;

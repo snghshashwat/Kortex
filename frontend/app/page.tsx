@@ -1,55 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import GraphViewer from "./components/GraphViewer";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const [userId, setUserId] = useState<string>("");
-  const [showGraph, setShowGraph] = useState<boolean>(false);
+  const [draftToken, setDraftToken] = useState<string>("");
+  const [accessToken, setAccessToken] = useState<string>("");
+  const [telegramUserId, setTelegramUserId] = useState<number | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const handleViewGraph = () => {
-    if (userId.trim()) {
-      setShowGraph(true);
+  useEffect(() => {
+    const savedToken = window.localStorage.getItem("kortex_access_token");
+    if (savedToken) {
+      setAccessToken(savedToken);
+      setDraftToken(savedToken);
     }
+  }, []);
+
+  useEffect(() => {
+    const validateToken = async () => {
+      if (!accessToken) {
+        setTelegramUserId(null);
+        return;
+      }
+
+      try {
+        const apiBase =
+          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+        const response = await axios.get(`${apiBase}/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setTelegramUserId(response.data.telegram_user_id);
+        setAuthError(null);
+        window.localStorage.setItem("kortex_access_token", accessToken);
+      } catch (error: any) {
+        setTelegramUserId(null);
+        setAuthError(
+          error?.response?.data?.detail || "Token is invalid or expired.",
+        );
+      }
+    };
+
+    validateToken();
+  }, [accessToken]);
+
+  const handleUnlock = () => {
+    const trimmedToken = draftToken.trim();
+    if (trimmedToken) {
+      setAccessToken(trimmedToken);
+    }
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem("kortex_access_token");
+    setAccessToken("");
+    setDraftToken("");
+    setTelegramUserId(null);
+    setAuthError(null);
   };
 
   return (
     <main className={styles.container}>
       <header className={styles.header}>
         <h1>🧠 Kortex Context Graph</h1>
-        <p>Visualize your second brain's semantic knowledge</p>
+        <p>Visualize your second brain's semantic knowledge, privately</p>
       </header>
 
-      {!showGraph ? (
+      {!accessToken ? (
         <div className={styles.inputSection}>
           <div className={styles.card}>
-            <h2>Enter Your Telegram User ID</h2>
+            <h2>Unlock Your Private Graph</h2>
             <p className={styles.hint}>
-              This is the numeric Telegram ID, not your username.
+              In Telegram, send <strong>/link</strong> to Kortex. Copy the
+              access token it returns, then paste it here.
               <br />
-              You can find it in Supabase: SELECT telegram_user_id FROM messages
-              LIMIT 1;
+              The same token is required for graph, search, reminders, and note
+              access.
             </p>
             <div className={styles.inputGroup}>
               <input
-                type="number"
-                placeholder="e.g., 1183743006"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleViewGraph()}
+                type="password"
+                placeholder="Paste your access token"
+                value={draftToken}
+                onChange={(e) => setDraftToken(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
               />
-              <button onClick={handleViewGraph}>View Graph</button>
+              <button onClick={handleUnlock}>Unlock</button>
             </div>
+            {authError && <p className={styles.error}>{authError}</p>}
           </div>
         </div>
       ) : (
         <div className={styles.graphSection}>
           <div className={styles.controls}>
-            <button onClick={() => setShowGraph(false)}>← Back</button>
-            <span className={styles.userId}>User ID: {userId}</span>
+            <button onClick={handleLogout}>Log out</button>
+            <span className={styles.userId}>
+              {telegramUserId
+                ? `Telegram user: ${telegramUserId}`
+                : "Verifying token..."}
+            </span>
           </div>
-          <GraphViewer userId={parseInt(userId)} />
+          <GraphViewer token={accessToken} />
         </div>
       )}
     </main>
