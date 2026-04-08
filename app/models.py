@@ -32,6 +32,18 @@ class ReminderRecord(BaseModel):
     status: Literal["pending", "sent", "cancelled"]
 
 
+class GoogleCalendarStatus(BaseModel):
+    connected: bool
+    email: str | None = None
+    token_expiry: datetime | None = None
+    connected_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class GoogleCalendarConnectResponse(BaseModel):
+    authorization_url: str
+
+
 class TelegramWebhookUpdate(BaseModel):
     update_id: int
     message: dict | None = None

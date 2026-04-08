@@ -33,6 +33,18 @@ CREATE TABLE IF NOT EXISTS reminders (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 4) Per-user Google Calendar OAuth connections.
+CREATE TABLE IF NOT EXISTS google_calendar_connections (
+  telegram_user_id BIGINT PRIMARY KEY,
+  email TEXT,
+  access_token TEXT,
+  refresh_token TEXT NOT NULL,
+  token_expiry TIMESTAMPTZ,
+  scopes TEXT,
+  connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_messages_user_created ON messages(telegram_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reminders_pending_due ON reminders(status, remind_at);
 

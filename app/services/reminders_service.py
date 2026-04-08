@@ -40,7 +40,7 @@ def create_reminder(message_id: str, user_id: int, chat_id: int, when: str, cust
         conn.commit()
 
     message_text = message_row["message_text"] if message_row else ""
-    sync_reminder_to_calendar(reminder, message_text=message_text, user_id=user_id)
+    sync_reminder_to_calendar(user_id, reminder, message_text=message_text)
 
     return {
         "id": str(reminder["id"]),

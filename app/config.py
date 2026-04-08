@@ -13,12 +13,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str
     telegram_webhook_secret: str
     public_base_url: str
+    frontend_base_url: str | None = None
     auth_secret: str | None = None
 
-    google_calendar_sync_reminders: bool = False
-    google_calendar_id: str | None = None
-    google_service_account_json: str | None = None
-    google_service_account_file: str | None = None
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
 
     llm_api_key: str
     llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"

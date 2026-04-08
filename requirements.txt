@@ -8,6 +8,3 @@ httpx==0.28.1
 apscheduler==3.10.4
 pydantic-settings==2.8.1
 dateparser==1.2.0
-google-api-python-client>=2.160.0,<3
-google-auth>=2.30.0,<3
-google-auth-httplib2>=0.2.0,<1

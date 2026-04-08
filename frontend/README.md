@@ -56,19 +56,20 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. In Telegram, send `/link` to Kortex.
 2. Copy the access token from the bot reply.
 3. Paste the token into the dashboard.
+4. Click `Connect Google Calendar` if you want reminders mirrored into your personal calendar.
 
-4. The graph shows:
+5. The graph shows:
    - **Nodes** = your notes
    - **Node size** = how connected the note is
    - **Edges** = semantic relationships
    - **Edge thickness** = similarity strength
    - **Labels** = similarity scores
 
-5. Adjust the similarity threshold to filter connections:
+6. Adjust the similarity threshold to filter connections:
    - Higher = only strongest connections
    - Lower = more connections shown
 
-6. Click nodes to see their ID and connections
+7. Click nodes to see their ID and connections
 
 ## Understanding the Graph
 
@@ -87,7 +88,13 @@ Use this to discover how your ideas connect!
 - **Axios** - API calls
 - **Vercel** - Deployment
 
-If the backend has Google Calendar sync enabled, reminder creation will also create a calendar event on the configured calendar.
+If you connect Google Calendar, reminder creation will also create events in that user’s primary calendar.
+
+### Google Calendar setup
+
+1. Create Google OAuth credentials in Google Cloud Console.
+2. Add the backend callback URL to authorized redirect URIs: `https://your-backend.onrender.com/google/calendar/callback`.
+3. Set `FRONTEND_BASE_URL`, `GOOGLE_OAUTH_CLIENT_ID`, and `GOOGLE_OAUTH_CLIENT_SECRET` in the backend env.
 
 ## API Integration
 
