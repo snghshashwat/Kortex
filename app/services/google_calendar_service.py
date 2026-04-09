@@ -12,10 +12,14 @@ logger = logging.getLogger(__name__)
 GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 
 
-def sync_reminder_to_calendar(telegram_user_id: int, reminder: dict, message_text: str) -> str | None:
+def sync_reminder_to_calendar(telegram_user_id: int, reminder: dict, message_text: str) -> dict:
     access_token = get_valid_google_access_token(telegram_user_id)
     if not access_token:
-        return None
+        return {
+            "status": "not_connected",
+            "event_id": None,
+            "error": "Google Calendar is not connected for this user",
+        }
 
     remind_at = reminder["remind_at"]
     if remind_at.tzinfo is None:
@@ -61,7 +65,15 @@ def sync_reminder_to_calendar(telegram_user_id: int, reminder: dict, message_tex
                     timeout=20,
                 )
         response.raise_for_status()
-        return response.json().get("id")
+        return {
+            "status": "created",
+            "event_id": response.json().get("id"),
+            "error": None,
+        }
     except Exception as exc:
         logger.warning("Failed to sync reminder %s to Google Calendar: %s", reminder["id"], exc)
-        return None
+        return {
+            "status": "failed",
+            "event_id": None,
+            "error": str(exc),
+        }

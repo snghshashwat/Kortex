@@ -40,7 +40,26 @@ def create_reminder(message_id: str, user_id: int, chat_id: int, when: str, cust
         conn.commit()
 
     message_text = message_row["message_text"] if message_row else ""
-    sync_reminder_to_calendar(user_id, reminder, message_text=message_text)
+    sync_result = sync_reminder_to_calendar(user_id, reminder, message_text=message_text)
+
+    with get_db() as (conn, cur):
+        cur.execute(
+            """
+            UPDATE reminders
+            SET google_event_id = %s,
+                google_sync_status = %s,
+                google_sync_error = %s,
+                google_synced_at = NOW()
+            WHERE id = %s;
+            """,
+            (
+                sync_result.get("event_id"),
+                sync_result.get("status"),
+                sync_result.get("error"),
+                reminder["id"],
+            ),
+        )
+        conn.commit()
 
     return {
         "id": str(reminder["id"]),

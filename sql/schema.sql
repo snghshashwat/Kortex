@@ -30,8 +30,18 @@ CREATE TABLE IF NOT EXISTS reminders (
   remind_at TIMESTAMPTZ NOT NULL,
   sent_at TIMESTAMPTZ,
   status TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'cancelled')),
+  google_event_id TEXT,
+  google_sync_status TEXT,
+  google_sync_error TEXT,
+  google_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Backfill for existing databases created before Google Calendar sync audit fields.
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_event_id TEXT;
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_sync_status TEXT;
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_sync_error TEXT;
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_synced_at TIMESTAMPTZ;
 
 -- 4) Per-user Google Calendar OAuth connections.
 CREATE TABLE IF NOT EXISTS google_calendar_connections (
