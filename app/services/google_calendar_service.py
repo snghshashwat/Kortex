@@ -25,24 +25,27 @@ def sync_reminder_to_calendar(telegram_user_id: int, reminder: dict, message_tex
     if remind_at.tzinfo is None:
         remind_at = remind_at.replace(tzinfo=timezone.utc)
 
+    reminder_id = str(reminder["id"])
+    message_id = str(reminder["message_id"])
+
     end_at = remind_at + timedelta(minutes=15)
     summary_text = " ".join(message_text.split())[:80]
-    summary = f"Kortex reminder: {summary_text}" if summary_text else f"Kortex reminder for note {reminder['message_id']}"
+    summary = f"Kortex reminder: {summary_text}" if summary_text else f"Kortex reminder for note {message_id}"
     event_body = {
         "summary": summary,
         "description": (
             "Reminder created from Kortex.\n\n"
             f"Telegram user ID: {telegram_user_id}\n"
-            f"Reminder ID: {reminder['id']}\n"
-            f"Note ID: {reminder['message_id']}\n\n"
+            f"Reminder ID: {reminder_id}\n"
+            f"Note ID: {message_id}\n\n"
             f"Note:\n{message_text}"
         ),
         "start": {"dateTime": remind_at.isoformat(), "timeZone": "UTC"},
         "end": {"dateTime": end_at.isoformat(), "timeZone": "UTC"},
         "extendedProperties": {
             "private": {
-                "kortex_reminder_id": reminder["id"],
-                "kortex_message_id": reminder["message_id"],
+                "kortex_reminder_id": reminder_id,
+                "kortex_message_id": message_id,
                 "kortex_user_id": str(telegram_user_id),
             }
         },
@@ -71,7 +74,7 @@ def sync_reminder_to_calendar(telegram_user_id: int, reminder: dict, message_tex
             "error": None,
         }
     except Exception as exc:
-        logger.warning("Failed to sync reminder %s to Google Calendar: %s", reminder["id"], exc)
+        logger.warning("Failed to sync reminder %s to Google Calendar: %s", reminder_id, exc)
         return {
             "status": "failed",
             "event_id": None,
