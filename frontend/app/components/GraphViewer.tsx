@@ -27,6 +27,45 @@ export default function GraphViewer({ token }: { token: string }) {
   } | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(0.7);
+  const [topicCount, setTopicCount] = useState(0);
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    title: string;
+    topic: string;
+    createdAt: string;
+    degree: number;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    title: "",
+    topic: "",
+    createdAt: "",
+    degree: 0,
+  });
+
+  const deriveTopic = (text: string) => {
+    const t = text.toLowerCase();
+    if (/(startup|product|roadmap|idea|plan|build)/.test(t)) return "Product";
+    if (/(fastapi|backend|api|auth|routing|database|pgvector)/.test(t))
+      return "Engineering";
+    if (
+      /(semantic|similarity|embedding|cluster|graph|context|ai|memory)/.test(t)
+    )
+      return "AI / Knowledge";
+    if (/(reminder|calendar|weekly|tomorrow|schedule)/.test(t))
+      return "Reminders";
+    return "General";
+  };
+
+  const formatDate = (iso: string) => {
+    if (!iso) return "Unknown";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString();
+  };
 
   useEffect(() => {
     const fetchAndRender = async () => {
@@ -58,23 +97,51 @@ export default function GraphViewer({ token }: { token: string }) {
         const graphData = response.data;
         setStats(graphData.stats);
 
-        // Create cytoscape elements
-        const elements = [
-          ...graphData.nodes.map((node) => ({
+        const topicMap = new Map<string, string>();
+        const topicNodes: Array<{ data: any }> = [];
+        const taskNodes = graphData.nodes.map((node) => {
+          const topic = deriveTopic(node.label);
+          const topicId = `topic::${topic.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+          if (!topicMap.has(topicId)) {
+            topicMap.set(topicId, topic);
+            topicNodes.push({
+              data: {
+                id: topicId,
+                label: topic,
+                type: "topic",
+              },
+            });
+          }
+
+          return {
             data: {
               id: node.id,
-              label: node.label,
+              shortLabel: node.label,
+              fullLabel: node.label,
+              created_at: node.created_at,
               degree: node.degree,
+              topic,
+              type: "task",
+              parent: topicId,
+              base_size: 14 + Math.min(node.degree, 6) * 2,
             },
-          })),
-          ...graphData.edges.map((edge) => ({
-            data: {
-              source: edge.source,
-              target: edge.target,
-              similarity: edge.similarity,
-            },
-          })),
-        ];
+          };
+        });
+
+        setTopicCount(topicNodes.length);
+
+        const semanticEdges = graphData.edges.map((edge) => ({
+          data: {
+            id: `sem::${edge.source}::${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            similarity: edge.similarity,
+            type: "semantic",
+          },
+        }));
+
+        const elements = [...topicNodes, ...taskNodes, ...semanticEdges];
 
         // Initialize cytoscape
         if (containerRef.current) {
@@ -83,54 +150,66 @@ export default function GraphViewer({ token }: { token: string }) {
             elements,
             style: [
               {
-                selector: "node",
+                selector: "node[type = 'topic']",
                 style: {
-                  "background-color": "#667eea",
+                  shape: "round-rectangle",
+                  "background-color": "#334155",
+                  "background-opacity": 0.55,
                   label: "data(label)",
-                  "text-valign": "center",
+                  color: "#cbd5e1",
+                  "font-size": "12px",
+                  "font-weight": 600,
                   "text-halign": "center",
-                  "font-size": "10px",
-                  color: "#fff",
-                  width: "mapData(degree, 0, 10, 30, 50)",
-                  height: "mapData(degree, 0, 10, 30, 50)",
-                  "text-wrap": "wrap",
-                  "text-max-width": "100px",
-                  padding: "10px",
+                  "text-valign": "top",
+                  "text-margin-y": "-8px",
+                  "border-color": "#475569",
+                  "border-width": 1,
+                  padding: "26px",
                 },
               },
               {
-                selector: "node[degree = 0]",
+                selector: "node[type = 'task']",
                 style: {
-                  "background-color": "#475569",
+                  "background-color": "#60a5fa",
+                  width: "data(base_size)",
+                  height: "data(base_size)",
+                  label: "",
+                  "border-width": 1,
+                  "border-color": "#1e293b",
                 },
               },
               {
-                selector: "node:selected",
+                selector: "node[type = 'task'][degree = 0]",
                 style: {
-                  "background-color": "#764ba2",
+                  "background-color": "#64748b",
+                },
+              },
+              {
+                selector: "node[type = 'task']:selected",
+                style: {
+                  "background-color": "#f59e0b",
                   "border-width": 3,
-                  "border-color": "#fff",
+                  "border-color": "#fef3c7",
                 },
               },
               {
-                selector: "edge",
+                selector: "edge[type = 'semantic']",
                 style: {
-                  "line-color": "#555",
-                  "target-arrow-color": "#555",
-                  "target-arrow-shape": "triangle",
-                  label: "data(similarity)",
+                  "line-color": "#64748b",
+                  "line-opacity": 0.9,
+                  label: "",
                   "font-size": "8px",
-                  color: "#999",
-                  width: "mapData(similarity, 0, 1, 1, 3)",
+                  color: "#cbd5e1",
+                  width: "mapData(similarity, 0, 1, 1, 5)",
+                  "curve-style": "bezier",
                 } as any,
               },
               {
                 selector: "edge:selected",
                 style: {
-                  "line-color": "#667eea",
-                  "target-arrow-color": "#667eea",
+                  "line-color": "#f59e0b",
                   width: "4px",
-                  color: "#667eea",
+                  color: "#f59e0b",
                 } as any,
               },
             ],
@@ -140,7 +219,10 @@ export default function GraphViewer({ token }: { token: string }) {
               animate: true,
               animationDuration: 500,
               avoidOverlap: true,
-              nodeSpacing: 10,
+              nodeRepulsion: 12000,
+              idealEdgeLength: 140,
+              edgeElasticity: 150,
+              nodeSpacing: 20,
               fit: true,
               padding: 50,
             } as any,
@@ -148,13 +230,54 @@ export default function GraphViewer({ token }: { token: string }) {
 
           cyRef.current = cy;
 
+          const resizeTaskDotsByZoom = () => {
+            const zoom = cy.zoom();
+            const scale = Math.max(0.8, Math.min(2.2, zoom));
+            cy.batch(() => {
+              cy.nodes("[type = 'task']").forEach((n: any) => {
+                const base = Number(n.data("base_size")) || 14;
+                const size = Math.max(10, Math.min(56, base * scale));
+                n.style("width", size);
+                n.style("height", size);
+              });
+            });
+          };
+
+          resizeTaskDotsByZoom();
+          cy.on("zoom", resizeTaskDotsByZoom);
+
           // Event listeners
           cy.on("tap", "node", (e: any) => {
-            setSelectedNode(e.target.id());
+            const node = e.target;
+            if (node.data("type") === "task") {
+              setSelectedNode(node.id());
+            }
           });
 
           cy.on("tap", "edge", (e: any) => {
             setSelectedNode(e.target.source().id());
+          });
+
+          cy.on("mouseover", "node[type = 'task']", (e: any) => {
+            const node = e.target;
+            const pos = node.renderedPosition();
+            setTooltip({
+              visible: true,
+              x: pos.x + 16,
+              y: pos.y + 16,
+              title: node.data("fullLabel") || "Untitled",
+              topic: node.data("topic") || "General",
+              createdAt: formatDate(node.data("created_at")),
+              degree: Number(node.data("degree") || 0),
+            });
+          });
+
+          cy.on("mouseout", "node[type = 'task']", () => {
+            setTooltip((t) => ({ ...t, visible: false }));
+          });
+
+          cy.on("pan zoom", () => {
+            setTooltip((t) => ({ ...t, visible: false }));
           });
 
           cy.on("tap", (e: any) => {
@@ -189,7 +312,26 @@ export default function GraphViewer({ token }: { token: string }) {
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.container} ref={containerRef} />
+      <div className={styles.containerWrap}>
+        <div className={styles.container} ref={containerRef} />
+        {tooltip.visible && (
+          <div
+            className={styles.tooltip}
+            style={{ left: tooltip.x, top: tooltip.y }}
+          >
+            <p className={styles.tooltipTitle}>{tooltip.title}</p>
+            <p>
+              <strong>Topic:</strong> {tooltip.topic}
+            </p>
+            <p>
+              <strong>Created:</strong> {tooltip.createdAt}
+            </p>
+            <p>
+              <strong>Links:</strong> {tooltip.degree}
+            </p>
+          </div>
+        )}
+      </div>
 
       <div className={styles.sidebar}>
         <div className={styles.panel}>
@@ -198,6 +340,9 @@ export default function GraphViewer({ token }: { token: string }) {
             <div className={styles.stats}>
               <p>
                 <strong>Total Notes:</strong> {stats.total_messages}
+              </p>
+              <p>
+                <strong>Topics:</strong> {topicCount}
               </p>
               <p>
                 <strong>Connections:</strong> {stats.total_edges}
@@ -223,10 +368,10 @@ export default function GraphViewer({ token }: { token: string }) {
 
           <h3>How to use</h3>
           <ul className={styles.instructions}>
-            <li>Click nodes to select them</li>
-            <li>Hover over edges to see similarity scores</li>
-            <li>Adjust threshold to filter weak connections</li>
-            <li>Zoom and pan to explore clusters</li>
+            <li>Topic containers group related tasks</li>
+            <li>Task dots grow as you zoom in</li>
+            <li>Hover a task dot for details</li>
+            <li>Adjust threshold to filter semantic links</li>
           </ul>
 
           {loading && <p className={styles.loading}>Loading...</p>}

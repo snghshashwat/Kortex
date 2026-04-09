@@ -5,12 +5,45 @@
   min-height: 0;
 }
 
-.container {
+.containerWrap {
   flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
   background: #0f0f0f;
   border: 1px solid #333;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 5;
+  max-width: 260px;
+  pointer-events: none;
+  background: rgba(12, 18, 30, 0.96);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #dbeafe;
+  font-size: 12px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.5);
+}
+
+.tooltip p {
+  margin: 4px 0;
+  line-height: 1.35;
+}
+
+.tooltipTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
 }
 
 .sidebar {
