@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_OAUTH_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 GOOGLE_PROFILE_SCOPES = "openid email profile"
 
@@ -57,16 +56,6 @@ def _exchange_code_for_tokens(code: str) -> dict:
             "redirect_uri": _redirect_uri(),
             "grant_type": "authorization_code",
         },
-        timeout=20,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def _fetch_google_profile(access_token: str) -> dict:
-    response = httpx.get(
-        GOOGLE_USERINFO_URL,
-        headers={"Authorization": f"Bearer {access_token}"},
         timeout=20,
     )
     response.raise_for_status()
@@ -126,8 +115,6 @@ def complete_google_calendar_oauth(code: str, state: str) -> dict:
     if not token_data.get("access_token"):
         raise ValueError("Google did not return an access token")
 
-    profile = _fetch_google_profile(token_data["access_token"])
-
     with get_db() as (_, cur):
         cur.execute(
             """
@@ -146,7 +133,7 @@ def complete_google_calendar_oauth(code: str, state: str) -> dict:
     return _store_connection(
         telegram_user_id=int(payload["telegram_user_id"]),
         token_data=token_data,
-        email=profile.get("email"),
+        email=None,
         refresh_token=refresh_token,
     )
 
