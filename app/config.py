@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str | None = None
 
     llm_api_key: str
-    llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
-    embedding_model: str = "text-embedding-004"
-    optional_cleaning_model: str = "gemini-2.0-flash-lite"
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    embedding_model: str = "llama3-70b-8192"
+    optional_cleaning_model: str = "llama3-8b-8192"
 
 
 settings = Settings()

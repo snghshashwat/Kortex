@@ -1,71 +1,68 @@
-import httpx
+import logging
+from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 
-def _gemini_post(path: str, payload: dict) -> dict:
-    response = httpx.post(
-        f"https://generativelanguage.googleapis.com/v1beta/{path}",
-        params={"key": settings.llm_api_key},
-        json=payload,
-        timeout=30.0,
-    )
-    response.raise_for_status()
-    return response.json()
+# Initialize OpenAI client with Groq base URL
+openai_client = OpenAI(
+    api_key=settings.llm_api_key,
+    base_url=settings.llm_base_url,
+)
+
+# Initialize local embedding model (lightweight, no API key needed)
+# Using all-MiniLM-L6-v2 which produces 384-dimensional embeddings
+_embedding_model = None
+
+
+def _get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        logger.info("Loading local embedding model...")
+        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        logger.info("Local embedding model loaded successfully")
+    return _embedding_model
 
 
 def clean_text_optional(text: str) -> str:
     """
-    Optional cleanup to remove noise using Gemini.
+    Optional cleanup to remove noise using Groq LLM.
     If the model call fails, we safely fall back to the original text.
     """
     try:
-        payload = {
-            "contents": [
+        response = openai_client.chat.completions.create(
+            model=settings.optional_cleaning_model,
+            messages=[
                 {
-                    "parts": [
-                        {
-                            "text": (
-                                "Clean this note without changing meaning. "
-                                "Keep it concise and return only cleaned text:\n\n"
-                                f"{text}"
-                            )
-                        }
-                    ]
+                    "role": "system",
+                    "content": "You are a helpful assistant that cleans up text. Remove noise without changing meaning. Keep it concise. Return only the cleaned text, nothing else."
+                },
+                {
+                    "role": "user",
+                    "content": f"Clean this note:\n\n{text}"
                 }
             ],
-            "generationConfig": {"maxOutputTokens": 120},
-        }
-        result = _gemini_post(f"models/{settings.optional_cleaning_model}:generateContent", payload)
-        candidates = result.get("candidates") or []
-        if candidates:
-            content = candidates[0].get("content") or {}
-            parts = content.get("parts") or []
-            cleaned = "".join(part.get("text", "") for part in parts).strip()
-            return cleaned if cleaned else text
-        return text
+            max_tokens=120,
+            temperature=0.1,
+        )
+        cleaned = response.choices[0].message.content.strip()
+        return cleaned if cleaned else text
     except Exception:
+        logger.exception("Text cleaning failed, returning original")
         return text
 
 
 def embed_text(text: str) -> list[float]:
     """
-    Generate embedding using Gemini's native embedding API.
-    Returns a list of 768 floats (Gemini embedding dimension).
+    Generate embedding using local sentence-transformers model.
+    Returns a list of 384 floats (all-MiniLM-L6-v2 dimension).
     """
-    for model_name in (settings.embedding_model, "embedding-001"):
-        try:
-            result = _gemini_post(
-                f"models/{model_name}:embedContent",
-                {
-                    "content": {"parts": [{"text": text}]},
-                },
-            )
-            embedding = result.get("embedding") or {}
-            values = embedding.get("values") or embedding.get("value") or embedding
-            if isinstance(values, list) and values:
-                return values
-        except Exception:
-            continue
-
-    raise RuntimeError("Failed to generate Gemini embedding")
+    try:
+        model = _get_embedding_model()
+        embedding = model.encode(text, convert_to_tensor=False)
+        return embedding.tolist()
+    except Exception:
+        logger.exception("Embedding generation failed")
+        raise RuntimeError("Failed to generate embedding")
