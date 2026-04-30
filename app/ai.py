@@ -48,6 +48,34 @@ def _lightweight_embedding(text: str, dims: int = _EMBEDDING_DIMS) -> list[float
     return [v / norm for v in vector]
 
 
+def _resize_embedding(values: list[float], dims: int = _EMBEDDING_DIMS) -> list[float]:
+    if len(values) == dims:
+        return values
+    if len(values) > dims:
+        return values[:dims]
+    return values + [0.0] * (dims - len(values))
+
+
+def _remote_embedding_optional(text: str) -> list[float] | None:
+    # Groq may not expose embeddings for all projects/models.
+    # If unavailable, caller falls back to local deterministic embeddings.
+    if not settings.embedding_model:
+        return None
+
+    try:
+        response = openai_client.embeddings.create(
+            model=settings.embedding_model,
+            input=text,
+        )
+        values = response.data[0].embedding
+        if not isinstance(values, list) or not values:
+            return None
+        return _resize_embedding([float(v) for v in values])
+    except Exception:
+        logger.warning("Remote embeddings unavailable; using local embedding fallback")
+        return None
+
+
 def clean_text_optional(text: str) -> str:
     """
     Optional cleanup to remove noise using Groq LLM.
@@ -82,6 +110,9 @@ def embed_text(text: str) -> list[float]:
     Returns a list of 768 floats to match pgvector column dimension.
     """
     try:
+        remote = _remote_embedding_optional(text)
+        if remote is not None:
+            return remote
         return _lightweight_embedding(text)
     except Exception:
         logger.exception("Embedding generation failed")

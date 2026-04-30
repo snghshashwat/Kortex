@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     llm_api_key: str
     llm_base_url: str = "https://api.groq.com/openai/v1"
-    embedding_model: str = "llama3-70b-8192"
+    embedding_model: str | None = None
     optional_cleaning_model: str = "llama3-8b-8192"
 
 

@@ -188,9 +188,14 @@ This pattern gives immediate capture and gently prompts the user for reminder in
 Code lives in `app/ai.py`:
 
 ```python
-response = client.embeddings.create(model=settings.embedding_model, input=text)
-embedding = response.data[0].embedding
+embedding = embed_text(text)
 ```
+
+Embedding strategy in this project:
+
+- First try remote embeddings if `EMBEDDING_MODEL` is configured and supported.
+- If the provider does not support embeddings (common on Groq setups), fall back to a deterministic local embedding.
+- This keeps graph/search available even during provider limits or model/API mismatch.
 
 What embeddings are:
 

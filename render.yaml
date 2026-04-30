@@ -21,8 +21,6 @@ services:
       - key: LLM_API_KEY
         sync: false
       - key: LLM_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta/openai
-      - key: EMBEDDING_MODEL
-        value: text-embedding-004
+        value: https://api.groq.com/openai/v1
       - key: OPTIONAL_CLEANING_MODEL
-        value: gemini-2.0-flash-lite
+        value: llama3-8b-8192

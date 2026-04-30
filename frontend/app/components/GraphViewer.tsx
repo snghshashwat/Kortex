@@ -60,9 +60,25 @@ export default function GraphViewer({ token }: { token: string }) {
   const [threshold, setThreshold] = useState(0.65);
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    title: string;
+    created: string;
+    links: number;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    title: "",
+    created: "",
+    links: 0,
+  });
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   const formatDate = (iso: string) => {
     if (!iso) return "Unknown";
@@ -78,9 +94,9 @@ export default function GraphViewer({ token }: { token: string }) {
   // Simple clustering based on connected components and modularity
   const assignClusters = (nodes: GraphNode[], edges: GraphEdge[]) => {
     const adjacency = new Map<string, Set<string>>();
-    
-    nodes.forEach(n => adjacency.set(n.id, new Set()));
-    edges.forEach(e => {
+
+    nodes.forEach((n) => adjacency.set(n.id, new Set()));
+    edges.forEach((e) => {
       adjacency.get(e.source)?.add(e.target);
       adjacency.get(e.target)?.add(e.source);
     });
@@ -90,7 +106,7 @@ export default function GraphViewer({ token }: { token: string }) {
     const visited = new Set<string>();
 
     // BFS to find connected components
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (!visited.has(node.id)) {
         const queue = [node.id];
         visited.add(node.id);
@@ -99,8 +115,8 @@ export default function GraphViewer({ token }: { token: string }) {
         while (queue.length > 0) {
           const current = queue.shift()!;
           const neighbors = adjacency.get(current) || new Set();
-          
-          neighbors.forEach(neighbor => {
+
+          neighbors.forEach((neighbor) => {
             if (!visited.has(neighbor)) {
               visited.add(neighbor);
               clusters.set(neighbor, currentCluster);
@@ -125,7 +141,10 @@ export default function GraphViewer({ token }: { token: string }) {
         const similarity = edge.data("similarity");
         const isVisible = similarity >= threshold;
         edge.style("opacity", isVisible ? Math.max(0.3, similarity) : 0.05);
-        edge.style("line-opacity", isVisible ? Math.max(0.3, similarity) : 0.05);
+        edge.style(
+          "line-opacity",
+          isVisible ? Math.max(0.3, similarity) : 0.05,
+        );
       });
 
       // Filter nodes based on search
@@ -176,16 +195,21 @@ export default function GraphViewer({ token }: { token: string }) {
           ...data.nodes.map((node) => {
             const cluster = clusters.get(node.id) || 0;
             const isOrphan = node.degree === 0;
-            
+
             return {
               data: {
                 id: node.id,
-                shortLabel: node.label.length > 25 ? node.label.slice(0, 25) + "..." : node.label,
+                shortLabel:
+                  node.label.length > 25
+                    ? node.label.slice(0, 25) + "..."
+                    : node.label,
                 fullLabel: node.label,
                 created_at: node.created_at,
                 degree: node.degree,
                 cluster,
-                color: isOrphan ? COLORS.nodeOrphan : TOPIC_COLORS[cluster % TOPIC_COLORS.length],
+                color: isOrphan
+                  ? COLORS.nodeOrphan
+                  : TOPIC_COLORS[cluster % TOPIC_COLORS.length],
                 size: isOrphan ? 8 : 12 + Math.min(node.degree, 8) * 2,
               },
             };
@@ -216,7 +240,7 @@ export default function GraphViewer({ token }: { token: string }) {
                   height: "data(size)",
                   label: "data(shortLabel)",
                   color: COLORS.text,
-                  "font-size": "11px",
+                  "font-size": "10px",
                   "text-valign": "bottom",
                   "text-halign": "center",
                   "text-margin-y": "4px",
@@ -226,7 +250,8 @@ export default function GraphViewer({ token }: { token: string }) {
                   "text-background-shape": "roundrectangle",
                   "border-width": 2,
                   "border-color": COLORS.background,
-                  "transition-property": "background-color, border-color, width, height, opacity",
+                  "transition-property":
+                    "background-color, border-color, width, height, opacity",
                   "transition-duration": "200ms",
                 } as any,
               },
@@ -253,6 +278,7 @@ export default function GraphViewer({ token }: { token: string }) {
                   "background-color": COLORS.nodeHighlight,
                   "border-color": "#fff",
                   "border-width": 2,
+                  "z-index": 1000,
                 },
               },
               {
@@ -315,7 +341,7 @@ export default function GraphViewer({ token }: { token: string }) {
             const node = e.target;
             const nodeData = data.nodes.find((n) => n.id === node.id());
             setSelectedNode(nodeData || null);
-            
+
             // Highlight connected nodes
             cy.elements().removeClass("highlighted dimmed");
             const connected = node.neighborhood().add(node);
@@ -334,11 +360,26 @@ export default function GraphViewer({ token }: { token: string }) {
             const node = e.target;
             setHoveredNode(node.id());
             node.addClass("hover");
-            
+
+            const rendered = node.renderedPosition();
+            setTooltip({
+              visible: true,
+              x: rendered.x + 14,
+              y: rendered.y + 14,
+              title: node.data("fullLabel") || "Untitled",
+              created: formatDate(node.data("created_at")),
+              links: Number(node.data("degree") || 0),
+            });
+
             // Show larger label on hover
             const fullLabel = node.data("fullLabel");
             if (fullLabel && fullLabel.length > 25) {
-              node.style("label", fullLabel.length > 50 ? fullLabel.slice(0, 50) + "..." : fullLabel);
+              node.style(
+                "label",
+                fullLabel.length > 50
+                  ? fullLabel.slice(0, 50) + "..."
+                  : fullLabel,
+              );
             }
           });
 
@@ -346,9 +387,14 @@ export default function GraphViewer({ token }: { token: string }) {
             const node = e.target;
             node.removeClass("hover");
             setHoveredNode(null);
-            
+            setTooltip((t) => ({ ...t, visible: false }));
+
             // Restore short label
             node.style("label", node.data("shortLabel"));
+          });
+
+          cy.on("pan zoom", () => {
+            setTooltip((t) => ({ ...t, visible: false }));
           });
 
           // Pan to selected node from sidebar
@@ -381,11 +427,17 @@ export default function GraphViewer({ token }: { token: string }) {
   }, [token, threshold, apiBase]);
 
   const handleZoomIn = () => {
-    cyRef.current?.animate({ zoom: { level: cyRef.current.zoom() * 1.2, position: { x: 0, y: 0 } }, duration: 200 });
+    cyRef.current?.animate({
+      zoom: { level: cyRef.current.zoom() * 1.2, position: { x: 0, y: 0 } },
+      duration: 200,
+    });
   };
 
   const handleZoomOut = () => {
-    cyRef.current?.animate({ zoom: { level: cyRef.current.zoom() / 1.2, position: { x: 0, y: 0 } }, duration: 200 });
+    cyRef.current?.animate({
+      zoom: { level: cyRef.current.zoom() / 1.2, position: { x: 0, y: 0 } },
+      duration: 200,
+    });
   };
 
   const handleFit = () => {
@@ -395,7 +447,7 @@ export default function GraphViewer({ token }: { token: string }) {
   const handleCenterOnNode = (nodeId: string) => {
     const cy = cyRef.current;
     if (!cy) return;
-    
+
     const node = cy.getElementById(nodeId);
     if (node.length > 0) {
       const nodeData = graphData?.nodes.find((n) => n.id === nodeId);
@@ -404,11 +456,11 @@ export default function GraphViewer({ token }: { token: string }) {
         fit: { eles: node, padding: 150 },
         duration: 400,
       });
-      
+
       // Select the node
       cy.elements().unselect();
       node.select();
-      
+
       // Highlight neighbors
       cy.elements().removeClass("highlighted dimmed");
       const connected = node.neighborhood().add(node);
@@ -423,22 +475,55 @@ export default function GraphViewer({ token }: { token: string }) {
         {/* Controls overlay */}
         <div className={styles.controlsOverlay}>
           <div className={styles.controlGroup}>
-            <button onClick={handleZoomIn} title="Zoom in" className={styles.controlBtn}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              onClick={handleZoomIn}
+              title="Zoom in"
+              className={styles.controlBtn}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
                 <path d="M11 8v6M8 11h6" />
               </svg>
             </button>
-            <button onClick={handleZoomOut} title="Zoom out" className={styles.controlBtn}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              onClick={handleZoomOut}
+              title="Zoom out"
+              className={styles.controlBtn}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
                 <path d="M8 11h6" />
               </svg>
             </button>
-            <button onClick={handleFit} title="Fit to screen" className={styles.controlBtn}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              onClick={handleFit}
+              title="Fit to screen"
+              className={styles.controlBtn}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
               </svg>
             </button>
@@ -455,19 +540,40 @@ export default function GraphViewer({ token }: { token: string }) {
             className={styles.searchInput}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className={styles.clearBtn}>×</button>
+            <button
+              onClick={() => setSearchQuery("")}
+              className={styles.clearBtn}
+            >
+              ×
+            </button>
           )}
         </div>
 
         {/* Graph container */}
         <div className={styles.container} ref={containerRef} />
+        {tooltip.visible && (
+          <div
+            className={styles.nodeTooltip}
+            style={{ left: tooltip.x, top: tooltip.y }}
+          >
+            <p className={styles.nodeTooltipTitle}>{tooltip.title}</p>
+            <p>
+              <strong>Created:</strong> {tooltip.created}
+            </p>
+            <p>
+              <strong>Links:</strong> {tooltip.links}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Sidebar */}
       <div className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <h2>Graph View</h2>
-          <p className={styles.subtitle}>Visualize your knowledge connections</p>
+          <p className={styles.subtitle}>
+            Visualize your knowledge connections
+          </p>
         </div>
 
         {/* Stats */}
@@ -475,11 +581,15 @@ export default function GraphViewer({ token }: { token: string }) {
           <div className={styles.statsSection}>
             <div className={styles.statGrid}>
               <div className={styles.statItem}>
-                <span className={styles.statValue}>{graphData.stats.total_messages}</span>
+                <span className={styles.statValue}>
+                  {graphData.stats.total_messages}
+                </span>
                 <span className={styles.statLabel}>Notes</span>
               </div>
               <div className={styles.statItem}>
-                <span className={styles.statValue}>{graphData.stats.total_edges}</span>
+                <span className={styles.statValue}>
+                  {graphData.stats.total_edges}
+                </span>
                 <span className={styles.statLabel}>Links</span>
               </div>
             </div>
@@ -501,7 +611,9 @@ export default function GraphViewer({ token }: { token: string }) {
             />
             <div className={styles.sliderLabels}>
               <span>More links</span>
-              <span className={styles.thresholdValue}>{threshold.toFixed(2)}</span>
+              <span className={styles.thresholdValue}>
+                {threshold.toFixed(2)}
+              </span>
               <span>Stronger only</span>
             </div>
           </div>
@@ -515,7 +627,8 @@ export default function GraphViewer({ token }: { token: string }) {
               <p className={styles.nodeText}>{selectedNode.label}</p>
               <div className={styles.nodeMeta}>
                 <span className={styles.metaItem}>
-                  <strong>Created:</strong> {formatDate(selectedNode.created_at)}
+                  <strong>Created:</strong>{" "}
+                  {formatDate(selectedNode.created_at)}
                 </span>
                 <span className={styles.metaItem}>
                   <strong>Connections:</strong> {selectedNode.degree}
@@ -539,7 +652,9 @@ export default function GraphViewer({ token }: { token: string }) {
                     className={styles.noteItem}
                   >
                     <span className={styles.noteText}>
-                      {node.label.length > 50 ? node.label.slice(0, 50) + "..." : node.label}
+                      {node.label.length > 50
+                        ? node.label.slice(0, 50) + "..."
+                        : node.label}
                     </span>
                     <span className={styles.noteMeta}>
                       {node.degree} link{node.degree !== 1 ? "s" : ""}
@@ -555,10 +670,18 @@ export default function GraphViewer({ token }: { token: string }) {
         <div className={styles.section}>
           <h3>How to Use</h3>
           <ul className={styles.helpList}>
-            <li><strong>Click</strong> a note to see its connections</li>
-            <li><strong>Drag</strong> to rearrange the graph</li>
-            <li><strong>Scroll</strong> to zoom in/out</li>
-            <li><strong>Search</strong> to find specific notes</li>
+            <li>
+              <strong>Click</strong> a note to see its connections
+            </li>
+            <li>
+              <strong>Drag</strong> to rearrange the graph
+            </li>
+            <li>
+              <strong>Scroll</strong> to zoom in/out
+            </li>
+            <li>
+              <strong>Search</strong> to find specific notes
+            </li>
             <li>Colors indicate related clusters</li>
           </ul>
         </div>

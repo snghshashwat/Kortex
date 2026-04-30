@@ -15,6 +15,31 @@
   overflow: hidden;
 }
 
+.nodeTooltip {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  max-width: 300px;
+  background: rgba(37, 37, 38, 0.96);
+  border: 1px solid #5d8eff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #d4d4d4;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.nodeTooltip p {
+  margin: 4px 0;
+  line-height: 1.35;
+}
+
+.nodeTooltipTitle {
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
 .container {
   width: 100%;
   height: 100%;
