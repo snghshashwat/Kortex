@@ -1,6 +1,9 @@
 import logging
+import hashlib
+import math
+import re
+
 from openai import OpenAI
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 
@@ -12,18 +15,37 @@ openai_client = OpenAI(
     base_url=settings.llm_base_url,
 )
 
-# Initialize local embedding model (lightweight, no API key needed)
-# Using all-MiniLM-L6-v2 which produces 384-dimensional embeddings
-_embedding_model = None
+_EMBEDDING_DIMS = 768
 
 
-def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        logger.info("Loading local embedding model...")
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("Local embedding model loaded successfully")
-    return _embedding_model
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def _stable_hash(token: str) -> bytes:
+    return hashlib.sha256(token.encode("utf-8")).digest()
+
+
+def _lightweight_embedding(text: str, dims: int = _EMBEDDING_DIMS) -> list[float]:
+    # Signed hashing trick to create deterministic fixed-size vectors without heavy ML deps.
+    vector = [0.0] * dims
+    tokens = _tokenize(text)
+
+    if not tokens:
+        return vector
+
+    for token in tokens:
+        digest = _stable_hash(token)
+        index = int.from_bytes(digest[:4], "big") % dims
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        weight = 1.0 + (len(token) / 10.0)
+        vector[index] += sign * weight
+
+    norm = math.sqrt(sum(v * v for v in vector))
+    if norm == 0:
+        return vector
+
+    return [v / norm for v in vector]
 
 
 def clean_text_optional(text: str) -> str:
@@ -56,13 +78,11 @@ def clean_text_optional(text: str) -> str:
 
 def embed_text(text: str) -> list[float]:
     """
-    Generate embedding using local sentence-transformers model.
-    Returns a list of 384 floats (all-MiniLM-L6-v2 dimension).
+    Generate lightweight deterministic embedding without heavy ML runtime.
+    Returns a list of 768 floats to match pgvector column dimension.
     """
     try:
-        model = _get_embedding_model()
-        embedding = model.encode(text, convert_to_tensor=False)
-        return embedding.tolist()
+        return _lightweight_embedding(text)
     except Exception:
         logger.exception("Embedding generation failed")
         raise RuntimeError("Failed to generate embedding")
